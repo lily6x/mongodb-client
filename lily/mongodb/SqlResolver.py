@@ -3,10 +3,9 @@ import json
 from lily.mongodb.DataBaseSupport import MongodbUtil
 from bson.objectid import ObjectId
 
+
+
 class SqlResolver(object):
-    SELECT = "select"
-    FROM = "from"
-    WHERE = "where"
 
 
     @staticmethod
@@ -16,8 +15,7 @@ class SqlResolver(object):
 
         si = sql.find("select")
         if si >= 0 :
-            commend = SqlResolver.resolvSelect(sql)
-
+            commend = SqlResolver.__resolvSelect(sql)
         # print(MongoCommend.toJson(commend))
         return commend
 
@@ -30,30 +28,40 @@ class SqlResolver(object):
 
 
     @staticmethod
-    def __resolvFind(wlist,result):
-        if type(wlist).__name__ == "list":
-            le = len(wlist)
-            if le < 3:
-                return result
-            va = wlist[2]
-            vai = va.find("'")
-            if vai < 0:
-                va = int(va)
-            else :
-                if "ObjectId" in va:
-                    v2 = ObjectId(va[10:len(va)-2])
-                    va = ObjectId(v2)
-                else :
-                    va = va[1:len(va) - 1]
-            result[wlist[0]] = va
-            nlist = wlist[4:]
-            return SqlResolver.__resolvFind(nlist, result)
+    def __resolvFind(wlist, result):
+        try:
+            if type(wlist).__name__ == "list":
+                le = len(wlist)
+                if le < 3:
+                    return result
+                vo = wlist[1]
+                print("option : ", vo)
+                va = wlist[2]
 
-
-
+                vai = va.find("'")
+                if vai < 0:
+                    va = float(va)
+                else:
+                    if "ObjectId" in va:
+                        v2 = ObjectId(va[10:len(va)-2])
+                        va = ObjectId(v2)
+                    else:
+                        va = va[1:len(va) - 1]
+                if vo == "=":
+                    result[wlist[0]] = va
+                else:
+                    vokey = SqlResolver.__getOption(vo)
+                    wlo = {}
+                    wlo[vokey] = va
+                    result[wlist[0]] = wlo
+                nlist = wlist[4:]
+                return SqlResolver.__resolvFind(nlist, result)
+        except Exception as e:
+            print("exception",e)
+            raise e
 
     @staticmethod
-    def resolvSelect(sql):
+    def __resolvSelect(sql):
         print(sql)
         commend = MongoCommend()
         commend.sql = sql
@@ -68,19 +76,33 @@ class SqlResolver(object):
         print(sqlList)
         print(sqlList.index("from"))
         print(sqlList[lfi+1])
-
         if "where" in sqlList :
             lwi = sqlList.index("where")
             wlist = sqlList[lwi + 1:]
             print(wlist)
             r = {}
-            wl = SqlResolver.__resolvFind(wlist, r)
+            try:
+                wl = SqlResolver.__resolvFind(wlist, r)
+            except Exception as e:
+                raise e
+            if wl is None:
+                wl = {}
             print(wl)
             commend.find = wl
 
         commend.collection = sqlList[lfi+1]
         return commend
 
+    @staticmethod
+    def __getOption(val):
+        print("option")
+        return {
+            '>': '$gt',
+            '>=': '$gte',
+            '<': '$lt',
+            '<=': '$lte',
+            '!=': '$ne'
+        }.get(val,'error')
 
 
 
